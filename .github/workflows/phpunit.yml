@@ -1,0 +1,49 @@
+name: PHPUnit
+
+on:
+  - push
+  - pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: ['8.0', '8.1']
+        
+    steps:
+    - name: Setup PHP ${{ matrix.php-version }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }} 
+    
+    - uses: actions/checkout@v3
+
+    - name: Validate composer.json and composer.lock
+      run: composer validate --strict
+
+    - name: Get user-level Composer cache
+      id: composer-cache
+      run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+    - name: Setup Composer cache
+      uses: actions/cache@v1
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: composer-${{ runner.os }}-${{ matrix.php }}-${{ matrix.package-release }}-${{ hashFiles('**/composer.json') }}
+        restore-keys: |
+          composer-${{ runner.os }}-${{ matrix.php }}-${{ matrix.package-release }}-${{ env.cache-name }}-
+          composer-${{ runner.os }}-${{ matrix.php }}-${{ matrix.package-release }}-
+          composer-${{ runner.os }}-${{ matrix.php }}-
+          composer-${{ runner.os }}-
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run unit test
+      run: composer test
